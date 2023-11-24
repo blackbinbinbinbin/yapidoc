@@ -1,0 +1,22 @@
+{
+    "name": "blackbinbin/yapidoc",
+    "description": "This is a tool that helps developers better generate yapi documents by using annotations",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "xubin2",
+            "email": "xubin2@37.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "ToolCli\\": "src/toolCli",
+            "App\\": "src/app",
+            "Lib\\": "src/lib"
+        }
+    },
+    "bin": ["yapidoc-tool"],
+    "minimum-stability": "dev",
+    "require": {}
+}
