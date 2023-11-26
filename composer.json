@@ -13,10 +13,20 @@
         "psr-4": {
             "ToolCli\\": "src/toolCli",
             "App\\": "src/app",
-            "Lib\\": "src/lib"
+            "Lib\\": "src/lib",
+            "Script\\": "src/script",
+            "blackbinbin\\yapidoc\\": "src/"
         }
     },
-    "bin": ["yapidoc-tool"],
+    "bin": ["yapidoc"],
     "minimum-stability": "dev",
-    "require": {}
+    "require": {},
+    "scripts": {
+        "post-install-cmd": [
+            "blackbinbin\\yapidoc\\script\\Installer::postInstall"
+        ],
+        "post-update-cmd": [
+            "blackbinbin\\yapidoc\\script\\Installer::postInstall"
+        ]
+    }
 }
