@@ -1,6 +1,7 @@
 <?php
 namespace Lib\File;
 
+use Lib\ApidocSchema\SchemaParse;
 use ToolCli\CliPrinter;
 
 class OutputDump
@@ -8,15 +9,24 @@ class OutputDump
     private $swaggerApi;
     private $outputFilePath;
 
-    public function  __construct()
+    public function  __construct($outputFilePath = "")
     {
         // 设定默认的输出文件路径
-        $tmpPath = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . "tmp" . DIRECTORY_SEPARATOR . date("Y-m-d");
-        if (!is_dir($tmpPath)) {
-            mkdir($tmpPath);
+        if (empty($outputFilePath)) {
+            $tmpPath = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . "tmp" . DIRECTORY_SEPARATOR . date("Y-m-d");
+            if (!is_dir($tmpPath)) {
+                mkdir($tmpPath, 0777, true);
+            }
+            $now = time();
+            $this->outputFilePath = $tmpPath . DIRECTORY_SEPARATOR . "tmp_{$now}.yapidoc.json";
+        } else {
+            if (is_dir($outputFilePath)) {
+                $now = time();
+                $this->outputFilePath = $outputFilePath . DIRECTORY_SEPARATOR . "tmp_{$now}.yapidoc.json";
+            } else {
+                $this->outputFilePath = $outputFilePath;
+            }
         }
-        $now = time();
-        $this->outputFilePath = $tmpPath . DIRECTORY_SEPARATOR . "tmp_{$now}.yapidoc.json";
     }
 
     public function setOutputPath($filePath)
@@ -30,22 +40,28 @@ class OutputDump
 
     public function outputApiDoc($swaggerApiSchema)
     {
-        $jsonContent = json_encode($swaggerApiSchema, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
-
         $outputJsonFilePath = $this->outputFilePath;
-        $originJsonContent = "";
+        $this->swaggerApi = $swaggerApiSchema;
         if (!file_exists($outputJsonFilePath)) {
             touch($outputJsonFilePath);
-        } else {
-            $originJsonContent = file_get_contents($outputJsonFilePath);
         }
-
-        // 这里需要智能合并一下
-        if (!empty($originJsonContent)) {
-            $originYapiDoc = json_decode($originJsonContent, true);
-            $this->swaggerApi = self::mergeYapidoc($originYapiDoc, $swaggerApiSchema);
-            $jsonContent = json_encode($this->swaggerApi, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
+        // 这里需要智能合并一下，查看此目录下所有文件，需要将其合并成同一个文件
+        $directory = dirname($outputJsonFilePath);
+        $files = glob($directory . '/*');
+        $apiFiles = [];
+        foreach ($files as $file) {
+            if (basename($file) != basename($outputJsonFilePath)) {
+                $apiFiles[] = $file;
+            }
         }
+        $oldSwaggerApi = [];
+        if (count($apiFiles) > 0) {
+            $oldSwaggerApi = $this->mergeApiFiles($apiFiles);
+        }
+        if (!empty($oldSwaggerApi)) {
+            $this->swaggerApi = self::mergeYapidoc($oldSwaggerApi, $swaggerApiSchema);
+        }
+        $jsonContent = json_encode($this->swaggerApi, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
 
         file_put_contents($outputJsonFilePath, $jsonContent);
         $printer = new CliPrinter();
@@ -53,6 +69,36 @@ class OutputDump
         return $outputJsonFilePath;
     }
 
+    private function mergeApiFiles($files = []) {
+        $retSwaggerApiSchema = SchemaParse::getDefaultSwaggerApi("Yapidoc文档", "yapidoc接口文档");
+        $delOldFiles = [];
+        foreach ($files as $file) {
+            if (!is_file($file)) {
+                continue;
+            }
+            $delOldFiles[] = $file;
+            $originJsonContent = file_get_contents($file);
+
+            // 这里需要智能合并一下
+            if (!empty($originJsonContent)) {
+                $originYapiDoc = json_decode($originJsonContent, true);
+                if (isset($originYapiDoc["openapi"])) {
+                    $retSwaggerApiSchema = self::mergeYapidoc($originYapiDoc, $retSwaggerApiSchema);
+                }
+            }
+        }
+        if (count($delOldFiles) > 0) {
+            foreach ($delOldFiles as $delFiles) {
+                $fileInfo = pathinfo($delFiles);
+                // 获取文件的扩展名
+                $extension = $fileInfo['extension'];
+                if (strtolower($extension) == "json") {
+                    unlink($delFiles);
+                }
+            }
+        }
+        return $retSwaggerApiSchema;
+    }
 
     public function mergeYapidoc($originYapiDoc, $swaggerApiDoc)
     {

@@ -116,7 +116,12 @@ class SchemaParse
 
     private function initSwaggerApi($title = "", $description = "")
     {
-        $swaggerApi = [
+        $swaggerApi = self::getDefaultSwaggerApi($title, $description);
+        $this->swaggerApi = $swaggerApi;
+    }
+
+    public static function getDefaultSwaggerApi($title = "", $description = "") {
+        return [
             "openapi" => "3.0.1",
             "info" => [
                 "title" => $title,
@@ -126,7 +131,6 @@ class SchemaParse
             "tags" => [],
             "paths" => [],
         ];
-        $this->swaggerApi = $swaggerApi;
     }
 
     private function generateSchemaFromExpStr($exampleJsonString)
